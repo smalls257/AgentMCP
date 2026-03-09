@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Minimize2, Maximize2, Terminal, ListTodo, FileCode } from "lucide-svelte";
+  import { X, Minimize2, Maximize2, Terminal, ListTodo, FileCode, Code } from "lucide-svelte";
   import type { Agent, Message, Task, Artifact } from "$lib/types";
   import Badge from "./ui/Badge.svelte";
   import ScrollArea from "./ui/ScrollArea.svelte";
@@ -25,12 +25,18 @@
   let input = $state("");
   let isMaximized = $state(false);
   let sidePanel = $state<"tasks" | "artifacts" | null>(null);
+  let showRawTerminal = $state(false);
+  let terminalOutput = $state("");
 
   function handleSend() {
     if (input.trim()) {
       onSendMessage(input.trim());
       input = "";
     }
+  }
+
+  function toggleTerminalView() {
+    showRawTerminal = !showRawTerminal;
   }
 
   function getStatusColor(status: string) {
@@ -79,9 +85,38 @@
   let agentState = "idle";
   
   function formatTimestamp(ts: number) {
-      const date = new Date(ts);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+       const date = new Date(ts);
+       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+   }
+
+   // Handle pty-output events from Rust
+   import { onMount } from 'svelte';
+   import { listen } from '@tauri-apps/api/event';
+
+   onMount(() => {
+     let unlisten: (() => void) | undefined;
+     const setup = async () => {
+       try {
+         unlisten = await listen<{agentId: string, type: string, data?: string}>('pty-output', (event) => {
+           const { agentId, type, data } = event.payload;
+           // Only update if this is our agent
+           if (agentId === agent.id) {
+             if (type === 'terminal_output' && data) {
+               terminalOutput += data;
+             } else if (type === 'terminal_exit') {
+               terminalOutput += '\n[Process exited]\n';
+             }
+           }
+         });
+       } catch (err) {
+         console.error("Failed to setup pty-output listener:", err);
+       }
+     };
+     setup();
+     return () => {
+       if (unlisten) unlisten();
+     };
+   });
 </script>
 
 <div
@@ -144,32 +179,47 @@
     </div>
   </div>
 
-  <!-- Main Content Area -->
-  <div class="flex-1 flex overflow-hidden min-h-0">
-    
-    <!-- Chat Panel - Always Visible -->
-    <div class="flex-1 flex flex-col overflow-hidden {sidePanel ? 'border-r border-gray-700' : ''}">
-      <ScrollArea className="flex-1 p-4">
-        <div class="space-y-3 font-mono text-sm">
-          {#each messages as message (message.id)}
-            <div class="space-y-1">
-              <div class="flex items-center gap-2">
-                <span class={message.role === "user" ? "text-blue-400" : "text-green-400"}>
-                  {#if message.role === "user"}
-                    user
-                  {:else}
-                    {agent.name.toLowerCase().replace(/\s+/g, "-")}@
-                  {/if}
-                </span>
-                <span class="text-gray-500 text-xs">{formatTimestamp(message.timestamp)}</span>
-              </div>
-              <div class="text-gray-300 pl-4 whitespace-pre-wrap">
-                {message.content}
-              </div>
-            </div>
-          {/each}
-        </div>
-      </ScrollArea>
+ <!-- Main Content Area -->
+   <div class="flex-1 flex overflow-hidden min-h-0">
+     
+     <!-- Raw Terminal View (when showRawTerminal is true) -->
+     {#if showRawTerminal}
+       <div class="flex-1 flex flex-col overflow-hidden bg-gray-950">
+         <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
+           <span class="text-xs font-mono text-gray-400">Raw Terminal Output</span>
+           <button onclick={toggleTerminalView} class="text-xs text-green-400 hover:text-white font-mono">
+             <Code class="size-3 inline" /> Chat View
+           </button>
+         </div>
+         <ScrollArea className="flex-1 p-4 font-mono text-sm whitespace-pre-wrap text-gray-300">
+           {terminalOutput}
+         </ScrollArea>
+       </div>
+     {:else}
+     <!-- Chat Panel - Always Visible -->
+     <div class="flex-1 flex flex-col overflow-hidden {sidePanel ? 'border-r border-gray-700' : ''}">
+       <ScrollArea className="flex-1 p-4">
+         <div class="space-y-3 font-mono text-sm">
+           {#each messages as message (message.id)}
+             <div class="space-y-1">
+               <div class="flex items-center gap-2">
+                 <span class={message.role === "user" ? "text-blue-400" : "text-green-400"}>
+                   {#if message.role === "user"}
+                     user
+                   {:else}
+                     {agent.name.toLowerCase().replace(/\s+/g, "-")}@
+                   {/if}
+                 </span>
+                 <span class="text-gray-500 text-xs">{formatTimestamp(message.timestamp)}</span>
+               </div>
+               <div class="text-gray-300 pl-4 whitespace-pre-wrap">
+                 {message.content}
+               </div>
+             </div>
+           {/each}
+         </div>
+       </ScrollArea>
+     {/if}
 
       <!-- Input -->
       <div class="border-t border-gray-700 p-4 bg-gray-850">
@@ -275,24 +325,35 @@
   </div>
 
   <!-- Bottom Tab Bar -->
-  <div class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center gap-2">
-    <button
-      onclick={() => (sidePanel = sidePanel === "tasks" ? null : "tasks")}
-      class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'tasks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
-    >
-      <ListTodo class="size-3" />
-      tasks ({activeTasks.length})
-    </button>
-    <button
-      onclick={() => (sidePanel = sidePanel === "artifacts" ? null : "artifacts")}
-      class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'artifacts' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
-    >
-      <FileCode class="size-3" />
-      artifacts ({artifacts.length})
-    </button>
-    <div class="flex-1"></div>
-    <span class="text-xs font-mono text-gray-500">
-      {messages.length} messages
-    </span>
-  </div>
+   <div class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center gap-2">
+     <button
+       onclick={toggleTerminalView}
+       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {showRawTerminal ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+     >
+       <Code class="size-3" />
+       {#if showRawTerminal}
+         Chat View
+       {:else}
+         Terminal
+       {/if}
+     </button>
+     <button
+       onclick={() => (sidePanel = sidePanel === "tasks" ? null : "tasks")}
+       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'tasks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+     >
+       <ListTodo class="size-3" />
+       tasks ({activeTasks.length})
+     </button>
+     <button
+       onclick={() => (sidePanel = sidePanel === "artifacts" ? null : "artifacts")}
+       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'artifacts' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+     >
+       <FileCode class="size-3" />
+       artifacts ({artifacts.length})
+     </button>
+     <div class="flex-1"></div>
+     <span class="text-xs font-mono text-gray-500">
+       {messages.length} messages
+     </span>
+   </div>
 </div>

@@ -40,30 +40,19 @@
           loadAgents(workspaces[0].id);
         }
 
-        // 2. Listen for agent-event from the sidecar
-        unlisten = await listen<{agentId: string, event: string, payload: any}>('agent-event', (event) => {
-          const { agentId, payload } = event.payload;
+        // 2. Listen for pty-output events from the Rust PTY manager
+        unlisten = await listen<{agentId: string, type: string, data?: string}>('pty-output', (event) => {
+          const { agentId, type, data } = event.payload;
           
-          if (payload.type === 'text') {
-             messages = [...messages, {
-               id: crypto.randomUUID(),
-               agentId,
-               role: 'agent',
-               content: payload.content,
-               timestamp: Date.now()
-             }];
-          } else if (payload.type === 'status_change') {
-             // Update agent status in the store
-             workspaces = workspaces.map(w => ({
-                ...w,
-                agents: w.agents.map(a => a.id === agentId ? { ...a, status: payload.status } : a)
-             }));
-          } else {
-             // For tool_use, subagent_spawned, etc -- refresh state from DB
-             if (activeConversationAgent?.id === agentId) {
-                loadAgentData(agentId);
-             }
-             if (selectedWorkspace) loadAgents(selectedWorkspace);
+          if (type === 'terminal_output' && data) {
+            // For now, just log raw output. In Phase 11, we'll parse ANSI sequences
+            console.log(`[${agentId}] ${data}`);
+          } else if (type === 'terminal_exit') {
+            // Update agent status to idle on exit
+            workspaces = workspaces.map(w => ({
+              ...w,
+              agents: w.agents.map(a => a.id === agentId ? { ...a, status: 'idle' } : a)
+            }));
           }
         });
       } catch (err) {
