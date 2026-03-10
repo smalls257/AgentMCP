@@ -179,181 +179,181 @@
     </div>
   </div>
 
- <!-- Main Content Area -->
-   <div class="flex-1 flex overflow-hidden min-h-0">
-     
-     <!-- Raw Terminal View (when showRawTerminal is true) -->
-     {#if showRawTerminal}
-       <div class="flex-1 flex flex-col overflow-hidden bg-gray-950">
-         <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
-           <span class="text-xs font-mono text-gray-400">Raw Terminal Output</span>
-           <button onclick={toggleTerminalView} class="text-xs text-green-400 hover:text-white font-mono">
-             <Code class="size-3 inline" /> Chat View
-           </button>
-         </div>
-         <ScrollArea className="flex-1 p-4 font-mono text-sm whitespace-pre-wrap text-gray-300">
-           {terminalOutput}
-         </ScrollArea>
-       </div>
-     {:else}
-     <!-- Chat Panel - Always Visible -->
-     <div class="flex-1 flex flex-col overflow-hidden {sidePanel ? 'border-r border-gray-700' : ''}">
-       <ScrollArea className="flex-1 p-4">
-         <div class="space-y-3 font-mono text-sm">
-           {#each messages as message (message.id)}
-             <div class="space-y-1">
-               <div class="flex items-center gap-2">
-                 <span class={message.role === "user" ? "text-blue-400" : "text-green-400"}>
-                   {#if message.role === "user"}
-                     user
-                   {:else}
-                     {agent.name.toLowerCase().replace(/\s+/g, "-")}@
-                   {/if}
-                 </span>
-                 <span class="text-gray-500 text-xs">{formatTimestamp(message.timestamp)}</span>
-               </div>
-               <div class="text-gray-300 pl-4 whitespace-pre-wrap">
-                 {message.content}
-               </div>
-             </div>
-           {/each}
-         </div>
-       </ScrollArea>
-     {/if}
-
-      <!-- Input -->
-      <div class="border-t border-gray-700 p-4 bg-gray-850">
-        <div class="flex gap-2">
-          <span class="text-green-400 font-mono text-sm self-center">$</span>
-          <Input
-            bind:value={input}
-            onkeydown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Type a message..."
-            class="flex-1 bg-gray-900 border-gray-700 text-gray-300 font-mono text-sm focus:border-green-400 focus:ring-green-400"
-          />
-          <Button
-            onclick={handleSend}
-            variant="default"
-            className="bg-green-600 hover:bg-green-700 text-white font-mono text-sm"
-          >
-            send
-          </Button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Side Panel - Tasks or Artifacts -->
-    {#if sidePanel}
-      <div class="w-96 flex flex-col overflow-hidden bg-gray-850 border-l border-gray-700">
-        <div class="border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-          <span class="text-green-400 font-mono text-sm">
-            {#if sidePanel === "tasks"}
-              tasks ({activeTasks.length})
-            {:else}
-              artifacts ({artifacts.length})
-            {/if}
-          </span>
-          <button
-            onclick={() => (sidePanel = null)}
-            class="text-gray-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <X class="size-4" />
+  <!-- Main Content Area -->
+  <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+    <!-- Raw Terminal View (when showRawTerminal is true) -->
+    {#if showRawTerminal}
+      <div class="flex-1 flex flex-col overflow-hidden bg-gray-950">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
+          <span class="text-xs font-mono text-gray-400">Raw Terminal Output</span>
+          <button onclick={toggleTerminalView} class="text-xs text-green-400 hover:text-white font-mono">
+            <Code class="size-3 inline" /> Chat View
           </button>
         </div>
-
-        <ScrollArea className="flex-1">
-          {#if sidePanel === "tasks"}
-            <div class="p-4 space-y-3 font-mono text-sm">
-              {#if activeTasks.length === 0}
-                <div class="text-center py-12 text-gray-500">
-                  <div class="text-4xl mb-2">✓</div>
-                  <div>No active tasks</div>
-                </div>
-              {:else}
-                {#each activeTasks as task (task.id)}
-                  <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
-                    <div class="flex items-start gap-2">
-                      <span class="text-lg">{getStatusIcon(task.status)}</span>
-                      <div class="flex-1 space-y-1">
-                        <div class="text-gray-200">{task.title}</div>
-                        <div class="text-xs text-gray-400">{task.description}</div>
-                        <div class="flex items-center gap-3 text-xs">
-                          <span class="text-gray-500">
-                            status: <span class="text-blue-400">{task.status}</span>
-                          </span>
-                          <span class="text-gray-500">
-                            priority: <span class={getPriorityColor(task.priority)}>{task.priority}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          {:else}
-            <div class="p-4 space-y-3 font-mono text-sm">
-              {#if artifacts.length === 0}
-                <div class="text-center py-12 text-gray-500">
-                  <div class="text-4xl mb-2">📁</div>
-                  <div>No artifacts yet</div>
-                </div>
-              {:else}
-                {#each artifacts as artifact (artifact.id)}
-                  <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2 hover:border-green-600 transition-colors cursor-pointer">
-                    <div class="flex items-center justify-between">
-                      <span class="text-green-400">{artifact.name}</span>
-                      <Badge className="bg-purple-900 text-purple-300 border-purple-700 text-xs font-mono">
-                        {artifact.type}
-                      </Badge>
-                    </div>
-                    <div class="text-xs text-gray-400 line-clamp-2 overflow-hidden">{artifact.content}</div>
-                    <div class="flex items-center justify-between text-xs">
-                      <span class="text-gray-500">{formatTimestamp(artifact.timestamp)}</span>
-                      {#if artifact.changes}
-                        <span class="text-green-400 font-mono">{artifact.changes}</span>
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          {/if}
+        <ScrollArea className="flex-1 p-4 font-mono text-sm whitespace-pre-wrap text-gray-300">
+          {terminalOutput}
         </ScrollArea>
       </div>
+    {:else}
+      <!-- Chat Panel -->
+      <div class="flex-1 flex overflow-hidden min-h-0">
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 p-4">
+            <div class="space-y-3 font-mono text-sm">
+              {#each messages as message (message.id)}
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class={message.role === "user" ? "text-blue-400" : "text-green-400"}>
+                      {#if message.role === "user"}
+                        user
+                      {:else}
+                        {agent.name.toLowerCase().replace(/\s+/g, "-")}@
+                      {/if}
+                    </span>
+                    <span class="text-gray-500 text-xs">{formatTimestamp(message.timestamp)}</span>
+                  </div>
+                  <div class="text-gray-300 pl-4 whitespace-pre-wrap">
+                    {message.content}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </ScrollArea>
+        </div>
+        
+        <!-- Side Panel - Tasks or Artifacts -->
+        {#if sidePanel}
+          <div class="w-96 flex flex-col overflow-hidden bg-gray-850 border-l border-gray-700">
+            <div class="border-b border-gray-700 px-4 py-2 flex items-center justify-between">
+              <span class="text-green-400 font-mono text-sm">
+                {#if sidePanel === "tasks"}
+                  tasks ({activeTasks.length})
+                {:else}
+                  artifacts ({artifacts.length})
+                {/if}
+              </span>
+              <button
+                onclick={() => (sidePanel = null)}
+                class="text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X class="size-4" />
+              </button>
+            </div>
+
+            <ScrollArea className="flex-1">
+              {#if sidePanel === "tasks"}
+                <div class="p-4 space-y-3 font-mono text-sm">
+                  {#if activeTasks.length === 0}
+                    <div class="text-center py-12 text-gray-500">
+                      <div class="text-4xl mb-2">✓</div>
+                      <div>No active tasks</div>
+                    </div>
+                  {:else}
+                    {#each activeTasks as task (task.id)}
+                      <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2">
+                        <div class="flex items-start gap-2">
+                          <span class="text-lg">{getStatusIcon(task.status)}</span>
+                          <div class="flex-1 space-y-1">
+                            <div class="text-gray-200">{task.title}</div>
+                            <div class="text-xs text-gray-400">{task.description}</div>
+                            <div class="flex items-center gap-3 text-xs">
+                              <span class="text-gray-500">
+                                status: <span class="text-blue-400">{task.status}</span>
+                              </span>
+                              <span class="text-gray-500">
+                                priority: <span class={getPriorityColor(task.priority)}>{task.priority}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {:else}
+                <div class="p-4 space-y-3 font-mono text-sm">
+                  {#if artifacts.length === 0}
+                    <div class="text-center py-12 text-gray-500">
+                      <div class="text-4xl mb-2">📁</div>
+                      <div>No artifacts yet</div>
+                    </div>
+                  {:else}
+                    {#each artifacts as artifact (artifact.id)}
+                      <div class="bg-gray-800 border border-gray-700 rounded p-3 space-y-2 hover:border-green-600 transition-colors cursor-pointer">
+                        <div class="flex items-center justify-between">
+                          <span class="text-green-400">{artifact.name}</span>
+                          <Badge className="bg-purple-900 text-purple-300 border-purple-700 text-xs font-mono">
+                            {artifact.type}
+                          </Badge>
+                        </div>
+                        <div class="text-xs text-gray-400 line-clamp-2 overflow-hidden">{artifact.content}</div>
+                        <div class="flex items-center justify-between text-xs">
+                          <span class="text-gray-500">{formatTimestamp(artifact.timestamp)}</span>
+                          {#if artifact.changes}
+                            <span class="text-green-400 font-mono">{artifact.changes}</span>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+            </ScrollArea>
+          </div>
+        {/if}
+      </div>
     {/if}
+
+    <!-- Input Area -->
+    <div class="border-t border-gray-700 p-4 bg-gray-850">
+      <div class="flex gap-2">
+        <span class="text-green-400 font-mono text-sm self-center">$</span>
+        <Input
+          bind:value={input}
+          onkeydown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Type a message..."
+          class="flex-1 bg-gray-900 border-gray-700 text-gray-300 font-mono text-sm focus:border-green-400 focus:ring-green-400"
+        />
+        <button
+          onclick={handleSend}
+          class="bg-green-500 hover:bg-green-600 text-white font-mono text-sm px-4 py-2 rounded-md shadow-lg shadow-green-500/30 transition-colors"
+        >
+          send
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Bottom Tab Bar -->
-   <div class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center gap-2">
-     <button
-       onclick={toggleTerminalView}
-       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {showRawTerminal ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
-     >
-       <Code class="size-3" />
-       {#if showRawTerminal}
-         Chat View
-       {:else}
-         Terminal
-       {/if}
-     </button>
-     <button
-       onclick={() => (sidePanel = sidePanel === "tasks" ? null : "tasks")}
-       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'tasks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
-     >
-       <ListTodo class="size-3" />
-       tasks ({activeTasks.length})
-     </button>
-     <button
-       onclick={() => (sidePanel = sidePanel === "artifacts" ? null : "artifacts")}
-       class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'artifacts' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
-     >
-       <FileCode class="size-3" />
-       artifacts ({artifacts.length})
-     </button>
-     <div class="flex-1"></div>
-     <span class="text-xs font-mono text-gray-500">
-       {messages.length} messages
-     </span>
-   </div>
+  <div class="bg-gray-800 border-t border-gray-700 px-4 py-2 flex items-center gap-2">
+    <button
+      onclick={toggleTerminalView}
+      class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {showRawTerminal ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+    >
+      <Code class="size-3" />
+      {#if showRawTerminal}
+        Chat View
+      {:else}
+        Terminal
+      {/if}
+    </button>
+    <button
+      onclick={() => (sidePanel = sidePanel === "tasks" ? null : "tasks")}
+      class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'tasks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+    >
+      <ListTodo class="size-3" />
+      tasks ({activeTasks.length})
+    </button>
+    <button
+      onclick={() => (sidePanel = sidePanel === "artifacts" ? null : "artifacts")}
+      class="flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-colors cursor-pointer {sidePanel === 'artifacts' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'}"
+    >
+      <FileCode class="size-3" />
+      artifacts ({artifacts.length})
+    </button>
+    <div class="flex-1"></div>
+    <span class="text-xs font-mono text-gray-500">
+      {messages.length} messages
+    </span>
+  </div>
 </div>
